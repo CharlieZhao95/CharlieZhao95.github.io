@@ -4,7 +4,7 @@
     <title>Python GIL与并发编程基础</title>
     <url>/2021/12/26/Python%20GIL%E4%B8%8E%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/</url>
     <content><![CDATA[<h1>一、Python GIL概述</h1>
-<p>本文假定您有一定的Python基础，在Python中很重要的一个概念就是GIL(全局解释器锁)，<strong>一个阻碍机器码并行执行的全局锁</strong>，这也代表了Python中的多线程实质上都是<strong>伪多线程</strong>，同一时刻实际只有一个线程在执行，即便使用多线程也无法做到真正的并发。</p>
+<p>在Python中很重要的一个概念就是GIL(全局解释器锁)，<strong>一个阻碍机器码并行执行的全局锁</strong>，这也代表了Python中的多线程实质上都是<strong>伪多线程</strong>，同一时刻实际只有一个线程在执行，即便使用多线程也无法做到真正的并发。</p>
 <p>由于GIL的存在，在多核系统中执行CPU密集型任务时也无法利用多核优势，使用<strong>多线程的性能甚至会比单线程更差</strong>一些。这个问题业内通用的做法是使用<strong>多进程编程</strong>，除此之外本文还将介绍Python中协程的使用(某些场景比线程效率更优的任务调度方式)。</p>
 <h1>二、并发编程</h1>
 <h2 id="2-1-多进程与多线程">2.1 多进程与多线程</h2>
@@ -29,6 +29,99 @@
         <tag>Python</tag>
         <tag>GIL</tag>
         <tag>并发编程</tag>
+      </tags>
+  </entry>
+  <entry>
+    <title>Python-Argument-Clinic</title>
+    <url>/2022/01/24/Python-Argument-Clinic/</url>
+    <content><![CDATA[<h1>Python Argument Clinic功能解析</h1>
+<h1>一、Argument Clinic概述</h1>
+<p>在阅读cpython源码的过程中，常常能在模块上看到如下的注释语句：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment">module _pickle</span></span><br><span class="line"><span class="comment">class _pickle.Pickler &quot;PicklerObject *&quot; &quot;&amp;Pickler_Type&quot;</span></span><br><span class="line"><span class="comment">class _pickle.PicklerMemoProxy &quot;PicklerMemoProxyObject *&quot; &quot;&amp;PicklerMemoProxyType&quot;</span></span><br><span class="line"><span class="comment">class _pickle.Unpickler &quot;UnpicklerObject *&quot; &quot;&amp;Unpickler_Type&quot;</span></span><br><span class="line"><span class="comment">class _pickle.UnpicklerMemoProxy &quot;UnpicklerMemoProxyObject *&quot; &quot;&amp;UnpicklerMemoProxyType&quot;</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br><span class="line"><span class="comment">/*[clinic end generated code: output=da39a3ee5e6b4b0d input=4b3e113468a58e6c]*/</span></span><br></pre></td></tr></table></figure>
+<p><code>clinic</code>是什么？<strong>本质是其实就是一个python脚本。</strong></p>
+<p><code>clinic</code>有什么功能？<strong>自动生成cpython中参数解析功能的相关代码。</strong></p>
+<p><code>clinic</code>是cpython中c文件的预处理器，可以通过固定格式的模板为<code>builtins</code>模块<strong>自动生成参数解析代码</strong>。如果自己维护cpython的参数解析代码，是一项较为繁琐的工作，需要在大量的地方维护冗余信息。当使用<code>Argument Clinic</code>功能时，我们不再需要自己进行参数解析，基于<code>Argument Clinic</code>生成的参数解析代码可以作为一个黑盒使用。</p>
+<p>当前cpython中大部分参数解析的函数都使用了<code>Argument Clinic</code>模板自动生成功能，本文主要为所有打算<strong>编写自定义模块</strong>和<strong>维护现有<code>builtins</code></strong> 的同学提供基础指导。</p>
+<h1>二、基本语法</h1>
+<h2 id="2-1-clinic-input和output">2.1 clinic input和output</h2>
+<p>clinic可以扫描文件中的指定行作为关键字，clinic input行之间的所有内容作为Clinic的模板输入，通常被称为<code>Clinic block</code>，也是我们需要重点关注和修改的部分。</p>
+<ul>
+<li><strong>clinic input start</strong>：<code>/*[clinic input]</code></li>
+<li><strong>clinic input end</strong>: <code>[clinic start generated code]*/</code></li>
+</ul>
+<p>构建python后执行命令行：<code>./python .\Tools\clinic\clinic.py foo.c</code></p>
+<p>可以扫描<code>foo.c</code>文件中的所有<code>clinic block</code>并生成代码，并在最后加上<code>/*[clinic end generated code: output=xx input=xx]*/</code>作为<strong>校验行</strong>，用于验证输入输出的对应关系。下面给出一个简单的例子：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/* foo.c */</span></span><br><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">... clinic input</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br><span class="line">... clinic output</span><br><span class="line"><span class="comment">/*[clinic end generated code: output=da39a3ee5e6b4b0d input=bb0565424c99751c]*/</span></span><br></pre></td></tr></table></figure>
+<h2 id="2-2-创建clinic模板">2.2 创建clinic模板</h2>
+<p>本节使用python3.10的<code>_pickle.c</code>模块作为样例，解析clinic的模板格式。</p>
+<ol>
+<li>
+<p>首先需要在类顶部声明模块/类定义，<strong>类似于C语言常常在文件顶部进行声明</strong>。此处应对所有模块与类进行声明，其名称应该与Python界面的名称保持一致，可以使用<code>PyModuleDef</code>和<code>PyTypeObject</code>中定义的名称。</p>
+<p>_pickle中模块及类的clinic定义样例：</p>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment">module _pickle</span></span><br><span class="line"><span class="comment">class _pickle.Pickler &quot;PicklerObject *&quot; &quot;&amp;Pickler_Type&quot;</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br></pre></td></tr></table></figure>
+</li>
+<li>
+<p>创建函数块的clinic，应该由几部分组成：</p>
+<ul>
+<li>
+<p>模块.类.方法名称(与python保持一致)，<strong>(可选)</strong> 使用<code>-&gt;</code>在method后添加返回值类型；</p>
+</li>
+<li>
+<p>空行后写入参数名称及类型，每个参数都应占独立一行；</p>
+</li>
+<li>
+<p><strong>(可选)</strong> 为参数设置默认值，格式为<code>name_of_parameter: converter = default_value</code>；</p>
+<blockquote>
+<p>converter是什么?</p>
+<p>我们需要了解参数应该被转换成什么类型，通常使用单个字符来表示某个特定类型，例如’O’表示对象，'s’表示字符串，'i’表示int型参数；详细可以参考:<a href="https://docs.python.org/3.11/c-api/arg.html#arg-parsing">arg-parsing</a></p>
+</blockquote>
+</li>
+<li>
+<p><strong>(可选)</strong> 新增一行后缩进，为每个参数添加文档说明；</p>
+</li>
+<li>
+<p><strong>(可选)</strong> 若使用<a href="https://www.osgeo.cn/cpython/c-api/arg.html#c.PyArg_ParseTuple"><code>PyArg_ParseTuple()</code></a> 解析参数，则所有参数都是位置相关，在最后加上<code>/</code>标记即可。如果需要使用关键字去解析参数<a href="https://www.osgeo.cn/cpython/c-api/arg.html#c.PyArg_ParseTupleAndKeywords"><code>PyArg_ParseTupleAndKeywords()</code></a> 则不需要加<code>/</code>；</p>
+</li>
+<li>
+<p><strong>(可选)</strong> 空行后，支持写入方法说明文档；</p>
+</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">_pickle.Pickler.dump</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  obj: &#x27;O&#x27;</span></span><br><span class="line"><span class="comment">      argument document(optional)</span></span><br><span class="line"><span class="comment">  /</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">Write a pickled representation of the given object to the open file.</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="2-3-clinc代码生成">2.3 clinc代码生成</h2>
+<p>这里给出一个<code>_pickle</code>模块的例子验证代码生成的功能，我们构建python后，执行命令行：</p>
+<p><code>./python .\Tools\clinic\clinic.py .\Modules\_pickle.c</code></p>
+<p>可以看到<code>clinic</code>其实就是一个生成代码的python脚本。</p>
+   <figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">// 未使用clinic时的原始pickler_dump函数</span></span><br><span class="line"><span class="function"><span class="keyword">static</span> PyObject *</span></span><br><span class="line"><span class="function"><span class="title">Pickler_dump</span><span class="params">(PicklerObject *self, PyObject *args)</span></span></span><br><span class="line"><span class="function"></span>&#123;</span><br><span class="line">    <span class="comment">// 定义了一个临时变量用于PyObject类型的参数解析</span></span><br><span class="line">    PyObject *obj;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/* Check whether the Pickler was initialized correctly (issue3664).</span></span><br><span class="line"><span class="comment">       Developers often forget to call __init__() in their subclasses, which</span></span><br><span class="line"><span class="comment">       would trigger a segfault without this check. */</span></span><br><span class="line">    <span class="keyword">if</span> (self-&gt;write == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        PyErr_Format(PicklingError,</span><br><span class="line">                     <span class="string">&quot;Pickler.__init__() was not called by %s.__init__()&quot;</span>,</span><br><span class="line">                     Py_TYPE(self)-&gt;tp_name);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">// 使用PyArg_ParseTuple进行参数解析</span></span><br><span class="line">    <span class="keyword">if</span> (!PyArg_ParseTuple(args, <span class="string">&quot;O:dump&quot;</span>, &amp;obj))</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (_Pickler_ClearBuffer(self) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (dump(self, obj) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">if</span> (_Pickler_FlushToFile(self) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    Py_RETURN_NONE;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>使用clinic处理后发生了几点变化：</p>
+<ul>
+<li>方法名根据clinic中定义的发生了改变，按模块/类/方法的格式进行定义<code>_pickle_Pickler_dump</code>;</li>
+<li>除了固定的self参数，其余参数根据clinic定义自动生成，此处自动生成了<code>PyObject *obj</code>；</li>
+<li><strong>参数不再需要传递<code>PyObject *args</code>，再使用<code>PyArg_ParseTuple</code>一个一个解析，解析的过程将自动完成；</strong></li>
+</ul>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">_pickle.Pickler.dump</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  obj: &#x27;O&#x27;</span></span><br><span class="line"><span class="comment">  /</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">Write a pickled representation of the given object to the open file.</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> PyObject *</span><br><span class="line">_pickle_Pickler_dump(PicklerObject *self, PyObject *obj)</span><br><span class="line"><span class="comment">/*[clinic end generated code: output=87ecad1261e02ac7 input=199cc5a0e7561167]*/</span></span><br><span class="line">&#123;</span><br><span class="line">    <span class="comment">/* Check whether the Pickler was initialized correctly (issue3664).</span></span><br><span class="line"><span class="comment">       Developers often forget to call __init__() in their subclasses, which</span></span><br><span class="line"><span class="comment">       would trigger a segfault without this check. */</span></span><br><span class="line">    <span class="keyword">if</span> (self-&gt;write == <span class="literal">NULL</span>) &#123;</span><br><span class="line">        PickleState *st = _Pickle_GetGlobalState();</span><br><span class="line">        PyErr_Format(st-&gt;PicklingError,</span><br><span class="line">                     <span class="string">&quot;Pickler.__init__() was not called by %s.__init__()&quot;</span>,</span><br><span class="line">                     Py_TYPE(self)-&gt;tp_name);</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (_Pickler_ClearBuffer(self) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (dump(self, obj) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (_Pickler_FlushToFile(self) &lt; <span class="number">0</span>)</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">    Py_RETURN_NONE;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// _pickle.h 头文件对应的宏定义也会自动生成以下代码块</span></span><br><span class="line">PyDoc_STRVAR(_pickle_Pickler_dump__doc__,</span><br><span class="line"><span class="string">&quot;dump($self, obj, /)\n&quot;</span></span><br><span class="line"><span class="string">&quot;--\n&quot;</span></span><br><span class="line"><span class="string">&quot;\n&quot;</span></span><br><span class="line"><span class="string">&quot;Write a pickled representation of the given object to the open file.&quot;</span>);</span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> _PICKLE_PICKLER_DUMP_METHODDEF    \</span></span><br><span class="line"><span class="meta">    &#123;<span class="meta-string">&quot;dump&quot;</span>, (PyCFunction)_pickle_Pickler_dump, METH_O, _pickle_Pickler_dump__doc__&#125;,</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// 直接添加到PyMethodDef中即可使用</span></span><br><span class="line"><span class="keyword">static</span> <span class="class"><span class="keyword">struct</span> <span class="title">PyMethodDef</span> <span class="title">Pickler_methods</span>[] =</span> &#123;</span><br><span class="line">    _PICKLE_PICKLER_DUMP_METHODDEF</span><br><span class="line">    _PICKLE_PICKLER_CLEAR_MEMO_METHODDEF</span><br><span class="line">    _PICKLE_PICKLER___SIZEOF___METHODDEF</span><br><span class="line">    &#123;<span class="literal">NULL</span>, <span class="literal">NULL</span>&#125;                <span class="comment">/* sentinel */</span></span><br><span class="line">&#125;;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>我们再<strong>添加一个int型参数</strong>来查看变化，可以看到：</p>
+<ul>
+<li>函数增加了一个int型参数，这和我们预想的一样；</li>
+<li>函数名变为<code>_pickle_Pickler_dump_impl</code>，clinic会在函数名后增加<code>_impl</code>后缀；</li>
+<li>在<code>_pickle.h</code>文件中新增了<code>_pickle_Pickler_dump</code>，<strong>自动补全了参数解析的代码块</strong>。</li>
+</ul>
+<figure class="highlight c"><table><tr><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">_pickle.Pickler.dump</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">  obj: object</span></span><br><span class="line"><span class="comment">  num: &#x27;i&#x27;</span></span><br><span class="line"><span class="comment">  /</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">Write a pickled representation of the given object to the open file.</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> PyObject *</span><br><span class="line">_pickle_Pickler_dump_impl(PicklerObject *self, PyObject *obj, <span class="keyword">int</span> num)</span><br><span class="line"><span class="comment">/*[clinic end generated code: output=e80bca9c5c5a35a2 input=c6c713f75bc38e80]*/</span></span><br><span class="line">&#123;</span><br><span class="line">    ...code block</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/* _pickle.h文件，参数解析方式自动选择了METH_FASTCALL，对应_pickle_Pickler_dump(PicklerObject *self, PyObject *const *args, Py_ssize_t nargs)的回调函数参数类型</span></span><br><span class="line"><span class="comment">*/</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> _PICKLE_PICKLER_DUMP_METHODDEF    \</span></span><br><span class="line"><span class="meta">    &#123;<span class="meta-string">&quot;dump&quot;</span>, (PyCFunction)(void(*)(void))_pickle_Pickler_dump, METH_FASTCALL, _pickle_Pickler_dump__doc__&#125;,</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">static</span> PyObject *</span><br><span class="line">_pickle_Pickler_dump_impl(PicklerObject *self, PyObject *obj, <span class="keyword">int</span> num);</span><br><span class="line"></span><br><span class="line"><span class="comment">/* 自动补充了参数解析的功能，我们写的函数逻辑作为底层被调用 */</span></span><br><span class="line"><span class="keyword">static</span> PyObject *</span><br><span class="line">_pickle_Pickler_dump(PicklerObject *self, PyObject *<span class="keyword">const</span> *args, Py_ssize_t nargs)</span><br><span class="line">&#123;</span><br><span class="line">    PyObject *return_value = <span class="literal">NULL</span>;</span><br><span class="line">    PyObject *obj;</span><br><span class="line">    <span class="keyword">int</span> num;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (!_PyArg_CheckPositional(<span class="string">&quot;dump&quot;</span>, nargs, <span class="number">2</span>, <span class="number">2</span>)) &#123;</span><br><span class="line">        <span class="keyword">goto</span> <span class="built_in">exit</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    obj = args[<span class="number">0</span>];</span><br><span class="line">    num = _PyLong_AsInt(args[<span class="number">1</span>]);</span><br><span class="line">    <span class="keyword">if</span> (num == <span class="number">-1</span> &amp;&amp; PyErr_Occurred()) &#123;</span><br><span class="line">        <span class="keyword">goto</span> <span class="built_in">exit</span>;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment">// 执行业务逻辑，不需要考虑参数解析</span></span><br><span class="line">    return_value = _pickle_Pickler_dump_impl(self, obj, num);</span><br><span class="line"></span><br><span class="line"><span class="built_in">exit</span>:</span><br><span class="line">    <span class="keyword">return</span> return_value;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+<p>可以看到使用<code>clinic</code>后不管是多少参数，都可以自动生成参数解析代码块，用<strong>声明式编程取代传统的命令式编程</strong>，使得我们的编码过程更加简单。</p>
+<h1>三、参考文章</h1>
+<p>除此了基本的功能之外，clinic还提供了强大的高级特性用于通过模板生成各种类型的函数，详细可见如下文档:</p>
+<p><a href="https://docs.python.org/3.11/howto/clinic.html">Argument Clinic官方文档</a></p>
+<p><a href="https://www.osgeo.cn/cpython/c-api/arg.html#c.PyArg_ParseTuple%5D">参数解析API相关文档</a></p>
+]]></content>
+      <categories>
+        <category>Python</category>
+        <category>CPython</category>
+        <category>clinic</category>
+      </categories>
+      <tags>
+        <tag>Python</tag>
+        <tag>CPython解释器</tag>
       </tags>
   </entry>
   <entry>
