@@ -20,31 +20,34 @@
     var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":36,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":10,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
   </script>
 
-  <meta name="description" content="聚焦领域：C&#x2F;C++, Python, Java, OS, 编译器技术.Know someting of everthing.">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Coding妙妙屋">
-<meta property="og:url" content="http://example.com/index.html">
+  <meta name="description" content="Python Argument Clinic功能解析 一、Argument Clinic概述 在阅读cpython源码的过程中，常常能在模块上看到如下的注释语句： 12345678&#x2F;*[clinic input]module _pickleclass _pickle.Pickler &quot;PicklerObject *&quot; &quot;&amp;Pickler_Type&quot;c">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Python-Argument-Clinic">
+<meta property="og:url" content="http://example.com/2022/01/24/Python-Argument-Clinic/index.html">
 <meta property="og:site_name" content="Coding妙妙屋">
-<meta property="og:description" content="聚焦领域：C&#x2F;C++, Python, Java, OS, 编译器技术.Know someting of everthing.">
+<meta property="og:description" content="Python Argument Clinic功能解析 一、Argument Clinic概述 在阅读cpython源码的过程中，常常能在模块上看到如下的注释语句： 12345678&#x2F;*[clinic input]module _pickleclass _pickle.Pickler &quot;PicklerObject *&quot; &quot;&amp;Pickler_Type&quot;c">
 <meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-01-24T11:42:14.000Z">
+<meta property="article:modified_time" content="2022-01-24T11:59:10.939Z">
 <meta property="article:author" content="CharlieZhao">
-<meta property="article:tag" content="C&#x2F;C++, Python, Java, OS, DesignPatterns, Spirngframework, MachineLearning, Cloud">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="CPython解释器">
 <meta name="twitter:card" content="summary">
 
-<link rel="canonical" href="http://example.com/">
+<link rel="canonical" href="http://example.com/2022/01/24/Python-Argument-Clinic/">
 
 
 <script id="page-configurations">
   // https://hexo.io/docs/variables.html
   CONFIG.page = {
     sidebar: "",
-    isHome : true,
-    isPost : false,
+    isHome : false,
+    isPost : true,
     lang   : 'zh-CN'
   };
 </script>
 
-  <title>Coding妙妙屋</title>
+  <title>Python-Argument-Clinic | Coding妙妙屋</title>
   
 
 
@@ -187,9 +190,10 @@
         <div class="content-wrap">
           
 
-          <div class="content index posts-expand">
+          <div class="content post posts-expand">
             
-      
+
+    
   
   
   <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
@@ -205,10 +209,9 @@
       <meta itemprop="name" content="Coding妙妙屋">
     </span>
       <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2022/01/24/Python-Argument-Clinic/" class="post-title-link" itemprop="url">Python-Argument-Clinic</a>
-        </h2>
+        <h1 class="post-title" itemprop="name headline">
+          Python-Argument-Clinic
+        </h1>
 
         <div class="post-meta">
             <span class="post-meta-item">
@@ -239,6 +242,13 @@
             </span>
 
           
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
 
         </div>
       </header>
@@ -249,7 +259,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-          <h1>Python Argument Clinic功能解析</h1>
+        <h1>Python Argument Clinic功能解析</h1>
 <h1>一、Argument Clinic概述</h1>
 <p>在阅读cpython源码的过程中，常常能在模块上看到如下的注释语句：</p>
 <figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/*[clinic input]</span></span><br><span class="line"><span class="comment">module _pickle</span></span><br><span class="line"><span class="comment">class _pickle.Pickler &quot;PicklerObject *&quot; &quot;&amp;Pickler_Type&quot;</span></span><br><span class="line"><span class="comment">class _pickle.PicklerMemoProxy &quot;PicklerMemoProxyObject *&quot; &quot;&amp;PicklerMemoProxyType&quot;</span></span><br><span class="line"><span class="comment">class _pickle.Unpickler &quot;UnpicklerObject *&quot; &quot;&amp;Unpickler_Type&quot;</span></span><br><span class="line"><span class="comment">class _pickle.UnpicklerMemoProxy &quot;UnpicklerMemoProxyObject *&quot; &quot;&amp;UnpicklerMemoProxyType&quot;</span></span><br><span class="line"><span class="comment">[clinic start generated code]*/</span></span><br><span class="line"><span class="comment">/*[clinic end generated code: output=da39a3ee5e6b4b0d input=4b3e113468a58e6c]*/</span></span><br></pre></td></tr></table></figure>
@@ -329,208 +339,41 @@
 <p><a target="_blank" rel="noopener" href="https://docs.python.org/3.11/howto/clinic.html">Argument Clinic官方文档</a></p>
 <p><a target="_blank" rel="noopener" href="https://www.osgeo.cn/cpython/c-api/arg.html#c.PyArg_ParseTuple%5D">参数解析API相关文档</a></p>
 
-      
     </div>
 
     
     
     
+
       <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
+          <div class="post-tags">
+              <a href="/tags/Python/" rel="tag"># Python</a>
+              <a href="/tags/CPython%E8%A7%A3%E9%87%8A%E5%99%A8/" rel="tag"># CPython解释器</a>
+          </div>
 
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2021/12/26/Python%20GIL%E4%B8%8E%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/">
+        
 
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar2.png">
-      <meta itemprop="name" content="CharlieZhao">
-      <meta itemprop="description" content="聚焦领域：C/C++, Python, Java, OS, 编译器技术.Know someting of everthing.">
-    </span>
 
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Coding妙妙屋">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/12/26/Python%20GIL%E4%B8%8E%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/" class="post-title-link" itemprop="url">Python GIL与并发编程基础</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2021-12-26 21:53:28" itemprop="dateCreated datePublished" datetime="2021-12-26T21:53:28+08:00">2021-12-26</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-12-30 00:24:31" itemprop="dateModified" datetime="2021-12-30T00:24:31+08:00">2021-12-30</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
-                </span>
-                  ，
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/Python/%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B/" itemprop="url" rel="index"><span itemprop="name">并发编程</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <h1>一、Python GIL概述</h1>
-<p>在Python中很重要的一个概念就是GIL(全局解释器锁)，<strong>一个阻碍机器码并行执行的全局锁</strong>，这也代表了Python中的多线程实质上都是<strong>伪多线程</strong>，同一时刻实际只有一个线程在执行，即便使用多线程也无法做到真正的并发。</p>
-<p>由于GIL的存在，在多核系统中执行CPU密集型任务时也无法利用多核优势，使用<strong>多线程的性能甚至会比单线程更差</strong>一些。这个问题业内通用的做法是使用<strong>多进程编程</strong>，除此之外本文还将介绍Python中协程的使用(某些场景比线程效率更优的任务调度方式)。</p>
-<h1>二、并发编程</h1>
-<h2 id="2-1-多进程与多线程">2.1 多进程与多线程</h2>
-<p>multiprocessing 是官方提供的多进程管理包，通过使用子进程而非线程有效地绕过了全局解释器锁。 因此，multiprocessing 模块允许程序员充分利用给定机器上的多个处理器。</p>
-<p>先看一组多线程与多进程执行独立任务时的性能对比：</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># @Time    : 2021/12/26 22:43 </span></span><br><span class="line"><span class="comment"># @Author  : CharlieZhao</span></span><br><span class="line"><span class="comment"># @File    : test_multiprocessing.py</span></span><br><span class="line"><span class="comment"># @Software: PyCharm</span></span><br><span class="line"><span class="comment"># @Note    : This module is used to test performance of multiprocessing</span></span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot; To avoid performance deficiency caused by GIL, multiprocessing is a better way to </span></span><br><span class="line"><span class="string">perform concurrent tasks than threading. This module is used to test performance between </span></span><br><span class="line"><span class="string">multiprocessing and threading.</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"> </span><br><span class="line"><span class="keyword">from</span> multiprocessing <span class="keyword">import</span> Process</span><br><span class="line"><span class="keyword">from</span> threading <span class="keyword">import</span> Thread</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_print_number</span>(<span class="params">info</span>):</span></span><br><span class="line">    res = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">100_000_000</span>):</span><br><span class="line">        res = res + i</span><br><span class="line">    <span class="built_in">print</span>(info + <span class="string">&quot; task over, result = &#123;&#125;&quot;</span>.<span class="built_in">format</span>(res))</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">show_execution_time</span>(<span class="params">start_time, end_time</span>):</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;The execution time is &#123;&#125; s&quot;</span>.<span class="built_in">format</span>(end_time - start_time))</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">execute_multiprocessing_task</span>():</span></span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    log the execution time of multiprocessing task.</span></span><br><span class="line"><span class="string">    :return: void</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; multiprocessing task start &quot;</span>)</span><br><span class="line">    p1 = Process(target=_print_number, args=(<span class="string">&quot;Process 1&quot;</span>,))</span><br><span class="line">    p2 = Process(target=_print_number, args=(<span class="string">&quot;Process 2&quot;</span>,))</span><br><span class="line"> </span><br><span class="line">    start = time.time()</span><br><span class="line">    p1.start()</span><br><span class="line">    p2.start()</span><br><span class="line">    p1.join()</span><br><span class="line">    p2.join()</span><br><span class="line">    end = time.time()</span><br><span class="line"> </span><br><span class="line">    show_execution_time(start, end)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; multiprocessing task end &quot;</span>)</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">execute_threading_task</span>():</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; threading task start &quot;</span>)</span><br><span class="line">    t1 = Thread(target=_print_number, args=(<span class="string">&quot;Thread 1&quot;</span>,))</span><br><span class="line">    t2 = Thread(target=_print_number, args=(<span class="string">&quot;Thread 2&quot;</span>,))</span><br><span class="line"> </span><br><span class="line">    start = time.time()</span><br><span class="line">    t1.start()</span><br><span class="line">    t2.start()</span><br><span class="line">    t1.join()</span><br><span class="line">    t2.join()</span><br><span class="line">    end = time.time()</span><br><span class="line"> </span><br><span class="line">    show_execution_time(start, end)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; threading task end &quot;</span>)</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    execute_multiprocessing_task()</span><br><span class="line">    execute_threading_task()</span><br><span class="line">    <span class="keyword">pass</span></span><br><span class="line"> </span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">result:</span></span><br><span class="line"><span class="string"> </span></span><br><span class="line"><span class="string"> multiprocessing task start </span></span><br><span class="line"><span class="string">Process 2 task over, result = 4999999950000000</span></span><br><span class="line"><span class="string">Process 1 task over, result = 4999999950000000</span></span><br><span class="line"><span class="string">The execution time is 10.988635778427124 s</span></span><br><span class="line"><span class="string"> multiprocessing task end </span></span><br><span class="line"><span class="string"> </span></span><br><span class="line"><span class="string"> threading task start </span></span><br><span class="line"><span class="string">Thread 1 task over, result = 4999999950000000</span></span><br><span class="line"><span class="string">Thread 2 task over, result = 4999999950000000</span></span><br><span class="line"><span class="string">The execution time is 19.204389572143555 s</span></span><br><span class="line"><span class="string"> threading task end </span></span><br><span class="line"><span class="string"> </span></span><br><span class="line"><span class="string">可以很直观的看到在执行两个CPU密集型的独立任务时，使用多进程相较于使用多线程效率快了一倍以上。</span></span><br><span class="line"><span class="string">当然，Python多线程也不是一无是处，在执行IO密集型任务时，单单使用多进程就不太适合了。</span></span><br><span class="line"><span class="string">使用多进程+多线程的模式可以绕过阻塞线程，同时相较于单进程+多线程一定程度上减少了CPU线程切换的性能损失。</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br></pre></td></tr></table></figure>
-<h2 id="2-2-协程基础应用">2.2 协程基础应用</h2>
-<p>协程是一种用户级的轻量级线程，<strong>协程拥有自己的寄存器上下文和栈</strong>。协程调度切换时，将寄存器上下文和栈保存到其他地方，在切回来的时候，恢复先前保存的寄存器上下文和栈。</p>
-<p>再对比一下线程和协程：</p>
-<p><strong>多线程</strong>：多线程的本质是抢占式多任务调度。不管是进程还是线程，每次阻塞、切换都需要陷入系统调用(system call)，先让CPU跑操作系统的调度程序，然后再由调度程序决定该跑哪一个进程(线程)。</p>
-<p><strong>协程</strong>：协程的本质是协作式多任务调度，需要用户自己来编写调度逻辑。<strong>对于CPU来说，协程其实就是单线程，不需要考虑怎么调度、切换上下文</strong>，一定程度避免了CPU调度线程切换的性能损失。</p>
-<p>但实际用好协程其实是非常困难的，不管是Debug还是由自己手动维护状态转移、调度逻辑都有很大的挑战，在此给出一个协程的使用样例，后续再继续深入讨论。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># @Time    : 2021/12/29 22:41 </span></span><br><span class="line"><span class="comment"># @Author  : CharlieZhao</span></span><br><span class="line"><span class="comment"># @File    : test_asyncio.py </span></span><br><span class="line"><span class="comment"># @Software: PyCharm</span></span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot;async task example&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> threading</span><br><span class="line"><span class="keyword">import</span> asyncio</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">show_execution_time</span>(<span class="params">start_time, end_time</span>):</span></span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot;The execution time is &#123;&#125; s&quot;</span>.<span class="built_in">format</span>(end_time - start_time))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">async</span> <span class="function"><span class="keyword">def</span> <span class="title">_async_print_number</span>(<span class="params">info</span>):</span></span><br><span class="line">    res = <span class="number">0</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">100_000_000</span>):</span><br><span class="line">        res = res + i</span><br><span class="line">        <span class="comment"># 增加一条线程打印语句观测调用过程</span></span><br><span class="line">        <span class="built_in">print</span>(info, <span class="string">&quot; res=&#123;&#125; in &#123;&#125;&quot;</span>.<span class="built_in">format</span>(res, threading.currentThread()))</span><br><span class="line">        <span class="keyword">await</span> asyncio.sleep(<span class="number">1</span>)  <span class="comment"># 1s sleep 模拟IO等待,在等待时自动切换任务</span></span><br><span class="line">    <span class="built_in">print</span>(info + <span class="string">&quot; task over, result = &#123;&#125;&quot;</span>.<span class="built_in">format</span>(res))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">execute_async_task</span>():</span></span><br><span class="line">    loop = asyncio.get_event_loop()</span><br><span class="line">    <span class="comment"># 创建两个任务</span></span><br><span class="line">    tasks = [_async_print_number(<span class="string">&quot;async task 1:&quot;</span>), _async_print_number(<span class="string">&quot;async task 2:&quot;</span>)]</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; async task start &quot;</span>)</span><br><span class="line"></span><br><span class="line">    start = time.time()</span><br><span class="line">    loop.run_until_complete(asyncio.wait(tasks))</span><br><span class="line">    end = time.time()</span><br><span class="line"></span><br><span class="line">    show_execution_time(start, end)</span><br><span class="line">    <span class="built_in">print</span>(<span class="string">&quot; async task end &quot;</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    execute_async_task()</span><br><span class="line"></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">result: 可以看到两个任务1s为周期交替执行(实质是一个任务进入IO阻塞后，通过我们的协程调度逻辑，</span></span><br><span class="line"><span class="string">在Event_loop中切换至另一个可用任务),且两个任务都在主线程中执行没有线程的切换。</span></span><br><span class="line"><span class="string">async task start </span></span><br><span class="line"><span class="string">async task 2:  res=0 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=0 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 2:  res=1 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=1 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 2:  res=3 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=3 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 2:  res=6 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=6 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 2:  res=10 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=10 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 2:  res=15 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">async task 1:  res=15 in &lt;_MainThread(MainThread, started 21168)&gt;</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br></pre></td></tr></table></figure>
-<h2 id="2-3-样例代码">2.3 样例代码</h2>
-<p>⭐️<a target="_blank" rel="noopener" href="https://github.com/CharlieZhao95/code-example/tree/main/Python/ConcurrentProgramming">GitHub: Python GIL与并发编程基础</a>，一键三连！</p>
-
-      
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/12/26/Python%20GIL%E4%B8%8E%E5%B9%B6%E5%8F%91%E7%BC%96%E7%A8%8B%E5%9F%BA%E7%A1%80/" rel="prev" title="Python GIL与并发编程基础">
+      <i class="fa fa-chevron-left"></i> Python GIL与并发编程基础
+    </a></div>
+      <div class="post-nav-item"></div>
     </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
       </footer>
+    
   </article>
   
   
-  
-
-      
-  
-  
-  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
-    <link itemprop="mainEntityOfPage" href="http://example.com/2021/12/25/hello-world/">
-
-    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
-      <meta itemprop="image" content="/images/avatar2.png">
-      <meta itemprop="name" content="CharlieZhao">
-      <meta itemprop="description" content="聚焦领域：C/C++, Python, Java, OS, 编译器技术.Know someting of everthing.">
-    </span>
-
-    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
-      <meta itemprop="name" content="Coding妙妙屋">
-    </span>
-      <header class="post-header">
-        <h2 class="post-title" itemprop="name headline">
-          
-            <a href="/2021/12/25/hello-world/" class="post-title-link" itemprop="url">Hello World</a>
-        </h2>
-
-        <div class="post-meta">
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-calendar"></i>
-              </span>
-              <span class="post-meta-item-text">发表于</span>
-
-              <time title="创建时间：2021-12-25 23:07:08" itemprop="dateCreated datePublished" datetime="2021-12-25T23:07:08+08:00">2021-12-25</time>
-            </span>
-              <span class="post-meta-item">
-                <span class="post-meta-item-icon">
-                  <i class="far fa-calendar-check"></i>
-                </span>
-                <span class="post-meta-item-text">更新于</span>
-                <time title="修改时间：2021-12-26 16:18:51" itemprop="dateModified" datetime="2021-12-26T16:18:51+08:00">2021-12-26</time>
-              </span>
-            <span class="post-meta-item">
-              <span class="post-meta-item-icon">
-                <i class="far fa-folder"></i>
-              </span>
-              <span class="post-meta-item-text">分类于</span>
-                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
-                  <a href="/categories/hexo/" itemprop="url" rel="index"><span itemprop="name">hexo</span></a>
-                </span>
-            </span>
-
-          
-
-        </div>
-      </header>
-
-    
-    
-    
-    <div class="post-body" itemprop="articleBody">
-
-      
-          <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
-<h2 id="Quick-Start">Quick Start</h2>
-<h3 id="Create-a-new-post">Create a new post</h3>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
-<h3 id="Run-server">Run server</h3>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
-<h3 id="Generate-static-files">Generate static files</h3>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
-<h3 id="Deploy-to-remote-sites">Deploy to remote sites</h3>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
-<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a></p>
-
-      
-    </div>
-
-    
-    
-    
-      <footer class="post-footer">
-        <div class="post-eof"></div>
-      </footer>
-  </article>
-  
-  
-  
-
-
   
 
 
 
           </div>
           
+    <div class="comments" id="gitalk-container"></div>
 
 <script>
   window.addEventListener('tabs:register', () => {
@@ -577,6 +420,7 @@
 
       <!--noindex-->
       <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">1.</span> <span class="nav-text">Python Argument Clinic功能解析</span></a></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">2.</span> <span class="nav-text">一、Argument Clinic概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">3.</span> <span class="nav-text">二、基本语法</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-clinic-input%E5%92%8Coutput"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 clinic input和output</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-%E5%88%9B%E5%BB%BAclinic%E6%A8%A1%E6%9D%BF"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 创建clinic模板</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-clinc%E4%BB%A3%E7%A0%81%E7%94%9F%E6%88%90"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 clinc代码生成</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">4.</span> <span class="nav-text">三、参考文章</span></a></li></ol></div>
       </div>
       <!--/noindex-->
 
@@ -726,6 +570,25 @@
 
   
 
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'fbecb77a1b6283e61eb2',
+      clientSecret: 'c4a58b672097ce1395b69f118c4e15ead2e250ca',
+      repo        : 'GitalkComments',
+      owner       : 'CharlieZhao95',
+      admin       : ['CharlieZhao95'],
+      id          : '0472a7fb89664e135109affbc4696a44',
+        language: 'en',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
 
 </body>
 </html>
