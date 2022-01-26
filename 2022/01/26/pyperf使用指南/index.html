@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.4.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Pisces","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":36,"offset":12,"onmobile":false},"copycode":{"enable":true,"show_result":true,"style":"mac"},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":true,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"buttons","active":"gitalk","storage":true,"lazyload":false,"nav":null,"activeClass":"gitalk"},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":true,"trigger":"auto","top_n_per_article":10,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},"path":"search.xml"};
+  </script>
+
+  <meta name="description" content="Python pyperf module 一、概述 在实际编码过程中常常需要对系统的性能进行剖析和优化，有以下工具可以使用： perf是一款linux性能分析工具，它提供了一个性能分析框架，可以用于分析程序运行过程中发生的硬件时间(CPU的时钟周期)&#x2F;软件时间(进程切换，缺页错误)来定位程序的性能瓶颈。 pyperf则是python中用于性能测试、分析的工具包。本文主要介绍如何快速上手pyperf">
+<meta property="og:type" content="article">
+<meta property="og:title" content="pyperf使用指南">
+<meta property="og:url" content="http://example.com/2022/01/26/pyperf%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/index.html">
+<meta property="og:site_name" content="Coding妙妙屋">
+<meta property="og:description" content="Python pyperf module 一、概述 在实际编码过程中常常需要对系统的性能进行剖析和优化，有以下工具可以使用： perf是一款linux性能分析工具，它提供了一个性能分析框架，可以用于分析程序运行过程中发生的硬件时间(CPU的时钟周期)&#x2F;软件时间(进程切换，缺页错误)来定位程序的性能瓶颈。 pyperf则是python中用于性能测试、分析的工具包。本文主要介绍如何快速上手pyperf">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:published_time" content="2022-01-26T14:22:20.000Z">
+<meta property="article:modified_time" content="2022-01-26T14:27:40.671Z">
+<meta property="article:author" content="CharlieZhao">
+<meta property="article:tag" content="Python">
+<meta property="article:tag" content="pyperf">
+<meta property="article:tag" content="性能测试">
+<meta name="twitter:card" content="summary">
+
+<link rel="canonical" href="http://example.com/2022/01/26/pyperf%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>pyperf使用指南 | Coding妙妙屋</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Coding妙妙屋</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">软件漫谈：从底层实现到架构设计</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+        <i class="fa fa-search fa-fw fa-lg"></i>
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-categories">
+
+    <a href="/categories/" rel="section"><i class="fa fa-th fa-fw"></i>分类</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+      <li class="menu-item menu-item-search">
+        <a role="button" class="popup-trigger"><i class="fa fa-search fa-fw"></i>搜索
+        </a>
+      </li>
+  </ul>
+</nav>
+
+
+
+  <div class="search-pop-overlay">
+    <div class="popup search-popup">
+        <div class="search-header">
+  <span class="search-icon">
+    <i class="fa fa-search"></i>
+  </span>
+  <div class="search-input-container">
+    <input autocomplete="off" autocapitalize="off"
+           placeholder="搜索..." spellcheck="false"
+           type="search" class="search-input">
+  </div>
+  <span class="popup-btn-close">
+    <i class="fa fa-times-circle"></i>
+  </span>
+</div>
+<div id="search-result">
+  <div id="no-result">
+    <i class="fa fa-spinner fa-pulse fa-5x fa-fw"></i>
+  </div>
+</div>
+
+    </div>
+  </div>
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+  <a role="button" class="book-mark-link book-mark-link-fixed"></a>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2022/01/26/pyperf%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar2.png">
+      <meta itemprop="name" content="CharlieZhao">
+      <meta itemprop="description" content="聚焦领域：C/C++, Python, Java, OS, 编译器技术.Know someting of everthing.">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Coding妙妙屋">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          pyperf使用指南
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+              
+
+              <time title="创建时间：2022-01-26 22:22:20 / 修改时间：22:27:40" itemprop="dateCreated datePublished" datetime="2022-01-26T22:22:20+08:00">2022-01-26</time>
+            </span>
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-folder"></i>
+              </span>
+              <span class="post-meta-item-text">分类于</span>
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python/" itemprop="url" rel="index"><span itemprop="name">Python</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python/python%E4%B8%89%E6%96%B9%E4%BB%B6/" itemprop="url" rel="index"><span itemprop="name">python三方件</span></a>
+                </span>
+                  ，
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/Python/python%E4%B8%89%E6%96%B9%E4%BB%B6/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/" itemprop="url" rel="index"><span itemprop="name">性能测试</span></a>
+                </span>
+            </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1>Python pyperf module</h1>
+<h1>一、概述</h1>
+<p>在实际编码过程中常常需要对系统的性能进行剖析和优化，有以下工具可以使用：</p>
+<p><code>perf</code>是一款linux性能分析工具，它提供了一个性能分析框架，可以用于分析程序运行过程中发生的硬件时间(CPU的时钟周期)/软件时间(进程切换，缺页错误)来定位程序的性能瓶颈。</p>
+<p><code>pyperf</code>则是python中用于性能测试、分析的工具包。<strong>本文主要介绍如何快速上手<code>pyperf</code>，对指定代码块或模块进行简单的性能测试。</strong></p>
+<h1>二、Quick Start</h1>
+<h2 id="2-1-Install">2.1 Install</h2>
+<p>执行命令行安装：</p>
+<p><code>python3 -m pip install pyperf</code></p>
+<p>若提示依赖的版本较低，可以尝试执行<code>setuptools</code>:</p>
+<p><code>python3 -m pip install -U setuptools</code></p>
+<h2 id="2-2-Command-line">2.2 Command line</h2>
+<ul>
+<li>通过命令行可以执行代码块并进行简单的时间性能测量(<code>benchmark</code>)，基本的测量方法为<strong>循环执行取均值</strong>。先看一个简单例子：</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> python3 -m pyperf timeit <span class="string">&#x27;[1,2]*1000&#x27;</span></span></span><br><span class="line">.....................</span><br><span class="line">Mean +- std dev: 4.19 us +- 0.05 us</span><br></pre></td></tr></table></figure>
+<ul>
+<li>使用<code>--output</code>或<code>-o</code>输出结果到 JSON 文件中：</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> python3 -m pyperf timeit <span class="string">&#x27;[1,2]*1000&#x27;</span> -o bench.json</span></span><br><span class="line">.....................</span><br><span class="line">Mean +- std dev: 4.22 us +- 0.08 us</span><br></pre></td></tr></table></figure>
+<ul>
+<li>使用<code>stats指令</code>计算多次执行的统计数据(<strong>均值/最大/最小值</strong>等)：</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> python3 -m pyperf stats outliers.json -q</span></span><br><span class="line">Total duration: 11.6 sec</span><br><span class="line">Start date: 2017-03-16 16:30:01</span><br><span class="line">End date: 2017-03-16 16:30:16</span><br><span class="line">Raw value minimum: 135 ms</span><br><span class="line">Raw value maximum: 197 ms</span><br><span class="line"></span><br><span class="line">Number of calibration run: 1</span><br><span class="line">Number of run with values: 20</span><br><span class="line">Total number of run: 21</span><br><span class="line"></span><br><span class="line">Number of warmup per run: 1</span><br><span class="line">Number of value per run: 3</span><br><span class="line">Loop iterations per value: 2^15</span><br><span class="line">Total number of values: 60</span><br><span class="line"></span><br><span class="line">Minimum:         4.12 us</span><br><span class="line">Median +- MAD:   4.25 us +- 0.05 us</span><br><span class="line">Mean +- std dev: 4.34 us +- 0.31 us</span><br><span class="line">Maximum:         6.02 us</span><br><span class="line"></span><br><span class="line">  0th percentile: 4.12 us (-5% of the mean) -- minimum</span><br><span class="line">  5th percentile: 4.15 us (-4% of the mean)</span><br><span class="line"> 25th percentile: 4.21 us (-3% of the mean) -- Q1</span><br><span class="line"> 50th percentile: 4.25 us (-2% of the mean) -- median</span><br><span class="line"> 75th percentile: 4.30 us (-1% of the mean) -- Q3</span><br><span class="line"> 95th percentile: 4.84 us (+12% of the mean)</span><br><span class="line">100th percentile: 6.02 us (+39% of the mean) -- maximum</span><br><span class="line"></span><br><span class="line">Number of outlier (out of 4.07 us..4.44 us): 9</span><br></pre></td></tr></table></figure>
+<ul>
+<li>使用直方图(<code>hist指令</code>)显示上述结果：</li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span><span class="bash"> python3 -m pyperf hist outliers.json -q</span></span><br><span class="line">4.10 us: 15 ##############################</span><br><span class="line">4.20 us: 29 ##########################################################</span><br><span class="line">4.30 us:  6 ############</span><br><span class="line">4.40 us:  3 ######</span><br><span class="line">4.50 us:  2 ####</span><br><span class="line">4.60 us:  1 ##</span><br><span class="line">4.70 us:  0 |</span><br><span class="line">4.80 us:  1 ##</span><br><span class="line">4.90 us:  0 |</span><br><span class="line">5.00 us:  0 |</span><br><span class="line">5.10 us:  0 |</span><br><span class="line">5.20 us:  2 ####</span><br><span class="line">5.30 us:  0 |</span><br><span class="line">5.40 us:  0 |</span><br><span class="line">5.50 us:  0 |</span><br><span class="line">5.60 us:  0 |</span><br><span class="line">5.70 us:  0 |</span><br><span class="line">5.80 us:  0 |</span><br><span class="line">5.90 us:  0 |</span><br><span class="line">6.00 us:  1 ##</span><br></pre></td></tr></table></figure>
+<ul>
+<li>对于一些测试可能<strong>无法获得稳定的结果</strong>，此时可以尝试使用中位数<code>median absolute deviation (MAD)  </code>去进行数据统计。</li>
+</ul>
+<p>更多高级统计方法可见：<a target="_blank" rel="noopener" href="https://pyperf.readthedocs.io/en/latest/analyze.html">https://pyperf.readthedocs.io/en/latest/analyze.html</a></p>
+<h2 id="2-3-Python-API">2.3 Python API</h2>
+<h3 id="2-3-1-bench-func">2.3.1 bench_func()</h3>
+<p><code>bench_func()</code>用于对<strong>函数</strong>进行性能测试，主要包括如下参数：</p>
+<ul>
+<li><em>name:</em> 本次<code>benchmark</code>的名称，在脚本中应保持唯一；</li>
+<li><em>func:</em> 回调函数；</li>
+<li><em>inner_loop:</em> 用于标准化每次循环迭代的时间。</li>
+</ul>
+<p><code>bench_func()</code>方法在设计时<strong>具有不可忽略的执行开销</strong>，如果<code>func</code>本身时间较短(&lt;1ms)则不建议使用该方法，此时使用<code>timeit() </code>和 <code>bench_time_func()</code>更加合适。下面给出一个用例，使用<code>bench_func()</code> 测量1ms的睡眠经过的时间：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python3</span></span><br><span class="line"><span class="keyword">import</span> pyperf</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">func</span>():</span></span><br><span class="line">    time.sleep(<span class="number">0.001</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">runner = pyperf.Runner()</span><br><span class="line">runner.bench_func(<span class="string">&#x27;sleep&#x27;</span>, func)</span><br></pre></td></tr></table></figure>
+<h3 id="2-3-2-timeit">2.3.2 timeit()</h3>
+<p><code>timeit()</code>同样用于性能测试，主要包括以下参数：</p>
+<ul>
+<li><em>name:</em> 本次<code>benchmark</code>的名称，在脚本中应保持唯一；</li>
+<li><em>stmt:</em> 执行的python语句；</li>
+<li><em>setup:</em> 在每次进行性能统计循环前执行的Python语句；</li>
+<li><em>teardown:</em> 在每次进行性能统计循环后执行的Python语句；</li>
+<li><em>duplicate</em>:  <em>stmt</em>中语句的重复次数，减少外循环的性能成本。</li>
+</ul>
+<p>下面给出一个例子，使用<code>timeit()</code> 测量1000个数字的排序列表时间性能：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python3</span></span><br><span class="line"><span class="keyword">import</span> pyperf</span><br><span class="line"></span><br><span class="line">runner = pyperf.Runner()</span><br><span class="line">runner.timeit(<span class="string">&quot;sorted(list(range(1000)), key=lambda x: x)&quot;</span>,</span><br><span class="line">              stmt=<span class="string">&quot;sorted(s, key=f)&quot;</span>,</span><br><span class="line">              setup=<span class="string">&quot;f = lambda x: x; s = list(range(1000))&quot;</span>)</span><br></pre></td></tr></table></figure>
+<h3 id="2-3-3-bench-command">2.3.3 bench_command()</h3>
+<p>使用<code>time.perf_counter()</code>计时器对命令的执行时间进行基准测试，测量<em><strong>Wall-time</strong></em>而不是<em><strong>CPU-time</strong></em>。</p>
+<p>两者的区别为：</p>
+<ul>
+<li><em>Wall-time:</em> 计算开始到计算结束的时间；</li>
+<li><em>CPU-time:</em> CPU用来执行程序的时间；</li>
+</ul>
+<p>部分程序由于需要线程等待<strong>IO完成</strong>或<strong>用户输入</strong>，导致CPU无法100%被利用，所以通常<em>CPU-time</em>比<em>wall-time</em>小。多线程时程序的<em>CPU-time</em> 是各个线程的<em>CPU-time</em> 时间统计之和。</p>
+<p>关键参数如下：</p>
+<ul>
+<li><em>name:</em> 本次<code>benchmark</code>的名称，在脚本中应保持唯一；</li>
+<li><em>command:</em> 命令参数列表，第一个参数通常是程序，这里我们一般就使用<code>sys.executable</code>。</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python3</span></span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> pyperf</span><br><span class="line"></span><br><span class="line">runner = pyperf.Runner()</span><br><span class="line">runner.bench_command(<span class="string">&#x27;python_startup&#x27;</span>, [sys.executable, <span class="string">&#x27;-c&#x27;</span>, <span class="string">&#x27;pass&#x27;</span>])</span><br></pre></td></tr></table></figure>
+<h3 id="2-3-4-bench-time-func">2.3.4 bench_time_func()</h3>
+<p><code>bench_time_func()</code>与其他方法的差异是<strong>要求我们自己编写测量函数</strong>，返回所有循环经过的总时间。</p>
+<ul>
+<li><em>name:</em> 本次l<code>benchmark</code>的名称，在脚本中应保持唯一；</li>
+<li><em>time_func(loops, *args):</em> 时间统计函数，需要我们基于<code>loops</code>参数内循环测量时间并返回。</li>
+</ul>
+<p>下面给出一个例子，测量<code>dict[key]</code>的查询性能：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python3</span></span><br><span class="line"><span class="keyword">import</span> pyperf</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">bench_dict</span>(<span class="params">loops, mydict</span>):</span></span><br><span class="line">    range_it = <span class="built_in">range</span>(loops)</span><br><span class="line">    t0 = pyperf.perf_counter()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> loops <span class="keyword">in</span> range_it:</span><br><span class="line">        mydict[<span class="string">&#x27;0&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;100&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;200&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;300&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;400&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;500&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;600&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;700&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;800&#x27;</span>]</span><br><span class="line">        mydict[<span class="string">&#x27;900&#x27;</span>]</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> pyperf.perf_counter() - t0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">runner = pyperf.Runner()</span><br><span class="line">mydict = &#123;<span class="built_in">str</span>(k): k <span class="keyword">for</span> k <span class="keyword">in</span> <span class="built_in">range</span>(<span class="number">1000</span>)&#125;</span><br><span class="line"><span class="comment"># inner-loops: dict[str] is duplicated 10 times</span></span><br><span class="line">runner.bench_time_func(<span class="string">&#x27;dict[str]&#x27;</span>, bench_dict, mydict, inner_loops=<span class="number">10</span>)</span><br></pre></td></tr></table></figure>
+<h1>三、参考文献</h1>
+<p><a target="_blank" rel="noopener" href="https://pyperf.readthedocs.io/en/latest/api.html">pyperf API参考手册</a></p>
+<p><a target="_blank" rel="noopener" href="https://pyperf.readthedocs.io/en/latest/user_guide.html">pyperf 用户手册</a></p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Python/" rel="tag"># Python</a>
+              <a href="/tags/pyperf/" rel="tag"># pyperf</a>
+              <a href="/tags/%E6%80%A7%E8%83%BD%E6%B5%8B%E8%AF%95/" rel="tag"># 性能测试</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2022/01/24/Python-Argument-Clinic/" rel="prev" title="Python-Argument-Clinic">
+      <i class="fa fa-chevron-left"></i> Python-Argument-Clinic
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+    <div class="comments" id="gitalk-container"></div>
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">1.</span> <span class="nav-text">Python pyperf module</span></a></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">2.</span> <span class="nav-text">一、概述</span></a></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">3.</span> <span class="nav-text">二、Quick Start</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-Install"><span class="nav-number">3.1.</span> <span class="nav-text">2.1 Install</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-Command-line"><span class="nav-number">3.2.</span> <span class="nav-text">2.2 Command line</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-3-Python-API"><span class="nav-number">3.3.</span> <span class="nav-text">2.3 Python API</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-1-bench-func"><span class="nav-number">3.3.1.</span> <span class="nav-text">2.3.1 bench_func()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-2-timeit"><span class="nav-number">3.3.2.</span> <span class="nav-text">2.3.2 timeit()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-3-bench-command"><span class="nav-number">3.3.3.</span> <span class="nav-text">2.3.3 bench_command()</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-3-4-bench-time-func"><span class="nav-number">3.3.4.</span> <span class="nav-text">2.3.4 bench_time_func()</span></a></li></ol></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link"><span class="nav-number">4.</span> <span class="nav-text">三、参考文献</span></a></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="CharlieZhao"
+      src="/images/avatar2.png">
+  <p class="site-author-name" itemprop="name">CharlieZhao</p>
+  <div class="site-description" itemprop="description">聚焦领域：C/C++, Python, Java, OS, 编译器技术.Know someting of everthing.</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">4</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-categories">
+            <a href="/categories/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">分类</span></a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">7</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+  <div class="links-of-author motion-element">
+      <span class="links-of-author-item">
+        <a href="https://github.com/CharlieZhao95" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;CharlieZhao95" rel="noopener" target="_blank"><i class="fab fa-github fa-fw"></i>GitHub</a>
+      </span>
+      <span class="links-of-author-item">
+        <a href="mailto:zhaoyu_hit@qq.com" title="E-Mail → mailto:zhaoyu_hit@qq.com" rel="noopener" target="_blank"><i class="fa fa-envelope fa-fw"></i>E-Mail</a>
+      </span>
+  </div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2021 – 
+  <span itemprop="copyrightYear">2022</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">CharlieZhao</span>
+</div>
+  <div class="powered-by">由 <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://pisces.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Pisces</a> 强力驱动
+  </div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/pisces.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+<script src="/js/bookmark.js"></script>
+
+
+
+
+  
+
+
+
+
+  
+<script src="/js/local-search.js"></script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+<link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css">
+
+<script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : 'fbecb77a1b6283e61eb2',
+      clientSecret: 'c4a58b672097ce1395b69f118c4e15ead2e250ca',
+      repo        : 'GitalkComments',
+      owner       : 'CharlieZhao95',
+      admin       : ['CharlieZhao95'],
+      id          : 'cc2ed6549d6c52b777962989c33cb1d6',
+        language: 'en',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script>
+
+</body>
+</html>
